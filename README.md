@@ -35,7 +35,24 @@ Prioritizes moves that capture high-value pieces with low-value attackers, impro
 
 ### ✅ NPS Benchmark Results
 
-<pre> ``` ========== Benchmark Result ========== Depth: 5 | Runs: 10 Total Nodes: 7,727,500 Total Time: 6.83 sec Average Time/Run: 0.683 sec Average Nodes/Run: 772,750 Average NPS: 1,131,924 nodes/sec ``` </pre>
+<pre>
+========== Benchmark Result ========== 
+Depth: 5 | Runs: 10 
+Total Nodes: 7,727,500 
+Total Time: 6.83 sec 
+Average Time/Run: 0.683 sec 
+Average Nodes/Run: 772,750 
+Average NPS: 1,131,924 nodes/sec 
+========== System Info ==========
+OS Name: Windows 11
+OS Version: 10.0
+Architecture: amd64
+Available Cores: 16
+System Load: 0.00%
+Process Load: 6.24%
+Java Version: 22.0.2
+JVM: OpenJDK 64-Bit Server VM
+</pre>
 
 ### ✅ Engine Evaluation
 
@@ -84,7 +101,20 @@ Prioritizes moves that capture high-value pieces with low-value attackers, impro
 
 ## 📁 Project Structure
 
-<pre> ``` /src ├── /model │ ├── GamBit.java ← Core engine logic │ ├── Bitboard.java ← Bitboard representation & move generation │ └── MoveSet.java ← Move data container └── /view ├── BoardPanel.java ← GUI rendering & game loop └── Main.java ← GUI entry point /res ├── /magic_data ← Magic bitboard lookup tables ├── /menu ← GUI resource images └── /piece ← Chess piece images ``` </pre>
+<pre>
+/src 
+  ├── /model
+  │     ├── GamBit.java ← Core engine logic 
+  │     ├── Bitboard.java ← Bitboard representation & move generation 
+  │     └── MoveSet.java ← Move data container 
+  └── /view 
+        ├── BoardPanel.java ← GUI rendering & game loop 
+        └── Main.java ← GUI entry point
+/res 
+  |── /magic_data ← Magic bitboard lookup tables 
+  ├── /menu ← GUI resource images 
+  └── /piece ← Chess piece images 
+</pre>
 
 ---
 
