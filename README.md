@@ -64,8 +64,12 @@ JVM: OpenJDK 64-Bit Server VM
 ## 🧪 How to Run
 
 ### 🔹 Play Against GamBit
-- Open `src/view/Main.java`
-- Run as a Java application to launch the game interface
+
+To run the application from the packaged JAR file, use the following command in your terminal or command prompt:
+
+```bash
+java -jar dist/GamBit.jar
+```
 
 ### 🔹 Run Benchmark Test
 - Open `src/model/Main.java`
