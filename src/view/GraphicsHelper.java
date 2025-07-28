@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 
 
@@ -14,21 +15,29 @@ public class GraphicsHelper{
 	private static final HashMap<String, BufferedImage> imageCache = new HashMap<>();
 	
 	public static BufferedImage getImage(String imagePath) {
+		if (!imagePath.startsWith("/res")) {
+	        imagePath = "/res" + imagePath;
+	    }
+		
 	    if (imageCache.containsKey(imagePath)) {
 	        return imageCache.get(imagePath);
 	    }
-	
-	    try {
-	        BufferedImage image = ImageIO.read(GraphicsHelper.class.getResourceAsStream(imagePath));
+	    try (InputStream is = GraphicsHelper.class.getResourceAsStream(imagePath)) {
+	        if (is == null) {
+	            System.err.println("Resource not found: " + imagePath);
+	            return null;
+	        }
+	        BufferedImage image = ImageIO.read(is);
 	        imageCache.put(imagePath, image);
 	        return image;
-	    } catch (IOException | NullPointerException e) {
+	    } catch (IOException e) {
 	        System.err.println("Could not load image: " + imagePath);
 	        e.printStackTrace();
 	        return null;
 	    }
 	}
-	
+
+
 	public static void drawRook(int row, int col, boolean toMove, Graphics2D g2) {
 		drawPiece(row, col, "rook", toMove, g2);
 	}
