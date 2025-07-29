@@ -75,6 +75,22 @@ java -jar dist/GamBit.jar
 - Open `src/model/Main.java`
 - Run as Java application to start NPS test
 
+### 🔹 Cloning Project
+
+To clone the project and make changes, follow these steps:
+
+1. Use the following command in your terminal or command prompt:
+
+```bash
+git clone https://github.com/ColinGale/GamBit-Chess-Engine.git
+```
+
+2. Import project into IDE of choice
+
+3. Ensure that res folder is included as a source folder in build path
+
+4. Run the program from `src/view/Main.java` or `src/model/Main.java`
+
 ---
 
 ## 🖥️ UI Preview

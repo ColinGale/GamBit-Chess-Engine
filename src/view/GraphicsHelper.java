@@ -15,9 +15,11 @@ public class GraphicsHelper{
 	private static final HashMap<String, BufferedImage> imageCache = new HashMap<>();
 	
 	public static BufferedImage getImage(String imagePath) {
+		/*
 		if (!imagePath.startsWith("/res")) {
 	        imagePath = "/res" + imagePath;
 	    }
+	    */
 		
 	    if (imageCache.containsKey(imagePath)) {
 	        return imageCache.get(imagePath);
