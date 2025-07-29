@@ -19,7 +19,7 @@ public class GraphicsHelper{
 		if (!imagePath.startsWith("/res")) {
 	        imagePath = "/res" + imagePath;
 	    }
-	    */
+		*/
 		
 	    if (imageCache.containsKey(imagePath)) {
 	        return imageCache.get(imagePath);
