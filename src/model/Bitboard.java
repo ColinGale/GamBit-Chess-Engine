@@ -373,11 +373,11 @@ public class Bitboard {
 		
 		// get opposing king square
 		int kingSquare = getKingSquare(!toMove);
+		allPieces = blackPieces | whitePieces;
 		updateCheckingPieces(kingSquare, toMove);
 		//if (checkingPieces != 0) System.out.println("CHECK!");
 		
 		toMove = !toMove;
-		allPieces = blackPieces | whitePieces;
 		
 		//if (isCheckMate(toMove)) System.out.println("Checkmate!");
 		//if (isStaleMate(toMove)) System.out.println("Stalemate!");
