@@ -1,6 +1,7 @@
 package model;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Stack;
 
 public class GamBit {
@@ -15,6 +16,7 @@ public class GamBit {
 	// temporary fix to 3-move repetition before adding zobrist-hashing
 	private int prevMove1;
 	private int prevMove2;
+	
 	
 	
 	// benchmark testing
@@ -36,7 +38,8 @@ public class GamBit {
 		prevMove2 = 0;
 	}
 	
-	public double negamax(Bitboard simBoard, boolean toMove, int depth, double alpha, double beta) {
+	public double negamax(Bitboard simBoard, boolean toMove, int depth, double alpha, double beta, HashMap<Long, Integer> positionReached) {
+		
 	    nodeCount++;
 		if (simBoard.isCheckMate(toMove)) {
 	    	double val = -MATE_SCORE - depth;
@@ -45,7 +48,7 @@ public class GamBit {
 	    if (simBoard.isStaleMate(toMove)) return 0;
 
 	    if (depth == 0) {
-	        double eval = quiescence(simBoard, toMove, alpha, beta);
+	        double eval = quiescence(simBoard, toMove, alpha, beta, positionReached);
 	        return eval;
 	    }
 
@@ -55,13 +58,24 @@ public class GamBit {
 
 	    for (MoveSet moveSet : moveList) {
 	    	
-	    	int stackSizeBefore = simBoard.gameStack.size();
-	    	
 	        simBoard.makeMove(moveSet.getMove());
-	        double val = -negamax(simBoard, !toMove, depth - 1, -beta, -alpha);
+	        
+	        // add position to the hashmap
+	        long boardHash = ZobristHashing.computeHash(simBoard);
+	        positionReached.put(boardHash, positionReached.getOrDefault(boardHash, 0) + 1);
+	        
+	        double val;
+	        
+	        // 3 - move repetition is recognized as a draw
+	        if (positionReached.get(boardHash) == 3) val = 0;
+	        else val = -negamax(simBoard, !toMove, depth - 1, -beta, -alpha, positionReached);
+	        
+	        // remove position from hashmap
+	        if (positionReached.get(boardHash) == 1) positionReached.remove(boardHash);
+	        else positionReached.put(boardHash, positionReached.get(boardHash) - 1);
+	        
 	        simBoard.undoMove();
 	        
-	        assert simBoard.gameStack.size() == stackSizeBefore : "Stack corruption!";
 	        
 	        if (depth == this.depth && sameMove(moveSet.getMove(), prevMove2)) continue;
 
@@ -78,7 +92,7 @@ public class GamBit {
 	}
 
 	
-	public double quiescence(Bitboard simBoard, boolean toMove, double alpha, double beta) {
+	public double quiescence(Bitboard simBoard, boolean toMove, double alpha, double beta, HashMap<Long, Integer> positionReached) {
 		nodeCount++;
 	    if (simBoard.isCheckMate(toMove)) {
 	        return -MATE_SCORE;
@@ -96,13 +110,25 @@ public class GamBit {
 	    double bestVal = staticEval;
 
 	    for (int[] moveArray : captureAndChecks) {
-	        int stackSizeBefore = simBoard.gameStack.size();
 
 	        simBoard.makeMove(moveArray[0]);
-	        double val = -quiescence(simBoard, !toMove, -beta, -alpha);
+	        
+	        // add position to the hashmap
+	        long boardHash = ZobristHashing.computeHash(simBoard);
+	        positionReached.put(boardHash, positionReached.getOrDefault(boardHash, 0) + 1);
+	        
+	        double val;
+	        
+	        // 3 - move repetition is recognized as a draw
+	        if (positionReached.get(boardHash) == 3) val = 0;
+	        else val = -quiescence(simBoard, !toMove, -beta, -alpha, positionReached);
+	        
+	        // remove position from hashmap
+	        if (positionReached.get(boardHash) == 1) positionReached.remove(boardHash);
+	        else positionReached.put(boardHash, positionReached.get(boardHash) - 1);
+	        
 	        simBoard.undoMove();
 
-	        assert simBoard.gameStack.size() == stackSizeBefore : "Stack corruption!";
 
 	        if (val >= beta) return val;
 	        if (val > bestVal) bestVal = val;

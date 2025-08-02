@@ -641,13 +641,34 @@ public class Bitboard {
 	    */
 	}
 	
+	// ZOBRIST HASHING METHODS
 	
 	public int getKingSquare(boolean toMove) {
 		long kingBB = toMove ? whiteKing : blackKing;
 		return Long.numberOfTrailingZeros(kingBB);
 	}
 	
+	public int getCastlingRights() {
+		int rights = 0;
+		
+		for (int i = 0; i < 2; i++) {
+			// king and rook have not been moved
+			if ((hasNotMoved & (1L << (3 + 56 * i))) != 0 && (hasNotMoved & 1L << (56 * i)) != 0) rights |= 1L << (2 * i);
+			if ((hasNotMoved & (1L << (3 + 56 * i))) != 0 && (hasNotMoved & 1L << (7 + 56 * i)) != 0) rights |= 1L << (2* i + 1);
+		}
+		
+		return rights;
+	}
 	
+	public int enpassantFile() {
+		long fileH = 0x0101010101010101L;
+		
+		for (int i = 0; i < 7; i++) {
+			if ((enpassant & (fileH << i)) != 0) return i;
+		}
+		
+		return -1;
+	}
 	
 	public ArrayList<Integer> generateAllLegalMoves(boolean toMove) {
 		

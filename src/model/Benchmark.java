@@ -2,6 +2,7 @@ package model;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.util.HashMap;
 
 public class Benchmark {
 	
@@ -15,7 +16,7 @@ public class Benchmark {
 	    for (int i = 0; i < runs; i++) {
 	    	
 	        long startTime = System.nanoTime();
-	        double result = engine.negamax(board, true, 5, -Double.MAX_VALUE, Double.MAX_VALUE);
+	        double result = engine.negamax(board, true, 5, -Double.MAX_VALUE, Double.MAX_VALUE, new HashMap<>());
 	        long endTime = System.nanoTime();
 
 	        long elapsedTime = endTime - startTime;
