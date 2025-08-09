@@ -1,4 +1,4 @@
-# ♟️ GamBit Chess Engine V1.0 ♟️
+# ♟️ GamBit Chess Engine V1.1 ♟️
 
 ![GamBit Logo](./res/menu/gambitlogo.png)
 
@@ -26,6 +26,9 @@ Avoids evaluation in “noisy” tactical positions by extending the search only
 ### ✅ MVV_LVA Move Ordering
 Prioritizes moves that capture high-value pieces with low-value attackers, improving pruning performance.
 
+### ✅ ZOBRIST HASHING
+Hashes unique positions using a series of random Longs and the XOR operation for fast and efficienct position hashing
+
 ---
 
 ## 🧠 Engine Benchmarking
@@ -36,20 +39,20 @@ Prioritizes moves that capture high-value pieces with low-value attackers, impro
 ### ✅ NPS Benchmark Results
 
 <pre>
-========== Benchmark Result ========== 
-Depth: 5 | Runs: 10 
-Total Nodes: 7,727,500 
-Total Time: 6.83 sec 
-Average Time/Run: 0.683 sec 
-Average Nodes/Run: 772,750 
-Average NPS: 1,131,924 nodes/sec 
+========== Benchmark Result ==========
+Depth: 5 | Runs: 10
+Total Nodes: 977710
+Total Time: 6.38 sec
+TT Hit Rate: 1.95%
+TT Cutoff Rate: 0.95%
+Average NPS: 153235 nodes/sec
 ========== System Info ==========
 OS Name: Windows 11
 OS Version: 10.0
 Architecture: amd64
 Available Cores: 16
 System Load: 0.00%
-Process Load: 6.24%
+Process Load: 7.23%
 Java Version: 22.0.2
 JVM: OpenJDK 64-Bit Server VM
 </pre>
@@ -91,6 +94,8 @@ git clone https://github.com/ColinGale/GamBit-Chess-Engine.git
 
 4. Run the program from `src/view/Main.java` or `src/model/Main.java`
 
+5. (IF CLASS NOT FOUND ERROR) Clean project files to ensure IDE generates own class files
+
 ---
 
 ## 🖥️ UI Preview
@@ -105,17 +110,13 @@ git clone https://github.com/ColinGale/GamBit-Chess-Engine.git
 |---------------|---------------------------------------------------------|
 | `depth`       | Search depth for minimax search                         |
 | `MATE_SCORE`  | Evaluation constant for checkmate detection             |
-| `prevMove1/2` | Used to avoid two-move repetition during root searches  |
 
 ---
 
-## 🛠️ Planned Updates
+## 🛠️ Version Control
 
-- ♻️ **Zobrist Hashing** for repetition detection and transposition table support  
-- 🧮 **Positional Evaluation** (king safety, pawn structure, center control)  
-- 📊 **Move History Visualization**  
-- 💡 **Multithreading** for parallel root move search  
-- ⚙️ **Customizable GUI**: evaluation bar, undo button, side selector  
+- ♟️v1.0 - Initial Version
+- ♟️v1.1 - Added Zobrist Hashing / Transposition Tables for Faster Lookup (140,000 NPS -> 150,000 NPS)
 
 ---
 
