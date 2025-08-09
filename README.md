@@ -36,20 +36,18 @@ Prioritizes moves that capture high-value pieces with low-value attackers, impro
 ### ✅ NPS Benchmark Results
 
 <pre>
-========== Benchmark Result ========== 
-Depth: 5 | Runs: 10 
-Total Nodes: 7,727,500 
-Total Time: 6.83 sec 
-Average Time/Run: 0.683 sec 
-Average Nodes/Run: 772,750 
-Average NPS: 1,131,924 nodes/sec 
+========== Benchmark Result ==========
+Depth: 5 | Runs: 10
+Total Nodes: 1405000
+Total Time: 6.18 sec
+Average NPS: 227322 nodes/sec
 ========== System Info ==========
 OS Name: Windows 11
 OS Version: 10.0
 Architecture: amd64
 Available Cores: 16
 System Load: 0.00%
-Process Load: 6.24%
+Process Load: 8.52%
 Java Version: 22.0.2
 JVM: OpenJDK 64-Bit Server VM
 </pre>
