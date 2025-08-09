@@ -108,8 +108,7 @@ public class BoardPanel extends JPanel implements Runnable{
 	
 	private void update() {
 		if (keyboard.printDebug) {
-			//engine.getBoard().printBoard();
-			board.printBoard();
+			System.out.println(Integer.toBinaryString(board.getCastlingRights()));
 			keyboard.printDebug = false;
 		}
 		
@@ -132,7 +131,6 @@ public class BoardPanel extends JPanel implements Runnable{
 			}
 			if (!mouse.pressed) {
 				if (draggedImage != null) {
-					
 				    int currentMouseRow = mouse.y / Board.SQUARE_SIZE;
 				    int currentMouseCol = mouse.x / Board.SQUARE_SIZE;
 				    
@@ -172,7 +170,6 @@ public class BoardPanel extends JPanel implements Runnable{
 	public void updateEngine() {
 		engine.negamax(board, false, 5, -1000000, 1000000);
 		int move = engine.getBestMove();
-		engine.updatePrevMoves(move);
 		board.makeMove(move);
 		toMove = !toMove;
 		prevMove = move;
