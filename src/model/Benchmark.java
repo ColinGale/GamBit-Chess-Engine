@@ -11,8 +11,15 @@ public class Benchmark {
 
 	    long totalNodes = 0;
 	    long totalTimeNano = 0;
+	    int warmup = 3;
+	    
+	    for (int i = 0; i < warmup; i++) {
+	    	double result = engine.negamax(board, true, 5, -Double.MAX_VALUE, Double.MAX_VALUE);
+	    	engine.resetStats();
+	    }
 
 	    for (int i = 0; i < runs; i++) {
+	    	engine.resetStats();
 	    	
 	        long startTime = System.nanoTime();
 	        double result = engine.negamax(board, true, 5, -Double.MAX_VALUE, Double.MAX_VALUE);

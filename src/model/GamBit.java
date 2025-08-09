@@ -132,5 +132,9 @@ public class GamBit {
 	public int getNodeCount() {
 		return nodeCount;
 	}
+	
+	public void resetStats() {
+		nodeCount = 0;
+	}
 
 }
