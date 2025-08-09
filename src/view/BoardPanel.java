@@ -168,9 +168,8 @@ public class BoardPanel extends JPanel implements Runnable{
 	}
 	
 	public void updateEngine() {
-		engine.negamax(board, false, 5, -1000000, 1000000, new HashMap<>());
+		engine.negamax(board, false, 5, -1000000, 1000000);
 		int move = engine.getBestMove();
-		engine.updatePrevMoves(move);
 		board.makeMove(move);
 		toMove = !toMove;
 		prevMove = move;

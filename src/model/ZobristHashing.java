@@ -5,8 +5,9 @@ import java.util.List;
 import java.util.Random;
 
 public class ZobristHashing {
-
-    private static List<List<Long>> zobristTable = new ArrayList<>();
+	
+	// 64 squares x 12 pieces
+    private static long[][] zobristTable = new long[12][64];
     
     
     
@@ -20,7 +21,7 @@ public class ZobristHashing {
     
     private static long[] enpassantFileHash = new long[8];
     
-    private static final Random rnd = new Random();
+    private static final Random rnd = new Random(1337);
     
     static {
     	initialize();
@@ -32,15 +33,14 @@ public class ZobristHashing {
     }
 
     public static void initialize() {
-    	zobristTable.clear();
     	
     	sideToMoveHash = randomLong();
-        for (int i = 0; i < 64; i++) {
-            List<Long> pieceList = new ArrayList<>();
-            for (int k = 0; k < 12; k++) {
-                pieceList.add(randomLong());
+        for (int i = 0; i < 12; i++) {
+            long[] squareList = new long[64];
+            for (int k = 0; k < 64; k++) {
+                squareList[k] = randomLong();
             }
-            zobristTable.add(pieceList);
+            zobristTable[i] = squareList;
         }
         
         for (int i = 0; i < 16; i++) {
@@ -58,7 +58,7 @@ public class ZobristHashing {
             char piece = board.getPieceOnSquare(square);
             int index = getIndex(piece);
             if (index != -1) {
-                hash ^= zobristTable.get(square).get(index);
+                hash ^= zobristTable[index][square];
             }
         }
         
@@ -74,8 +74,24 @@ public class ZobristHashing {
         
         return hash;
     }
+    
+    public static long getZobristMoveHash() {
+    	return sideToMoveHash;
+    }
+    
+    public static long[] getZobristCastlingRights() {
+    	return castlingRightsHash;
+    }
+    
+    public static long[] getZobristEnpassantFile() {
+    	return enpassantFileHash;
+    }
+    
+    public static long[][] getTable(){
+    	return zobristTable;
+    }
 
-    private static int getIndex(char piece) {
+    public static int getIndex(char piece) {
         switch (piece) {
             case 'P': return 0;
             case 'N': return 1;

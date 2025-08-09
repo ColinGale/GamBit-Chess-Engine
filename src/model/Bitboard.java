@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Stack;
 
 import javax.imageio.ImageIO;
@@ -60,8 +61,18 @@ public class Bitboard {
 	final int FLAG_CASTLE_QUEENSIDE = 8;
 	// etc.
 	
-	//private HashMap<String, Integer> fenHistory = new HashMap<>();
+	// gamestack and zobristhash
 	public Stack<Bitboard> gameStack;
+	private long zobristHash;
+	
+
+	long[][] ZOBRIST_TABLE;
+	long[] ZOBRIST_CASTLING_RIGHTS;
+	long[] ZOBRIST_ENPASSANT_FILE;
+	long ZOBRIST_MOVE_HASH;
+	
+	int[] charToPieceZobrist;
+
 	
 	public Bitboard() {
 		whitePawns = 0x000000000000FF00L;
@@ -93,6 +104,30 @@ public class Bitboard {
 		
 		toMove = true;
 		gameStack = new Stack<>();
+		
+
+		
+		// zobrist hash constants
+		ZOBRIST_TABLE = ZobristHashing.getTable();
+		ZOBRIST_CASTLING_RIGHTS = ZobristHashing.getZobristCastlingRights();
+		ZOBRIST_ENPASSANT_FILE = ZobristHashing.getZobristEnpassantFile();
+		ZOBRIST_MOVE_HASH = ZobristHashing.getZobristMoveHash();
+		
+		//zobristHash = ZobristHashing.computeHash(this);
+		charToPieceZobrist = new int[128];
+		
+	    charToPieceZobrist['P'] = 0;
+	    charToPieceZobrist['N'] = 1;
+	    charToPieceZobrist['B'] = 2;
+	    charToPieceZobrist['R'] = 3;
+	    charToPieceZobrist['Q'] = 4;
+	    charToPieceZobrist['K'] = 5;
+	    charToPieceZobrist['p'] = 6;
+	    charToPieceZobrist['n'] = 7;
+	    charToPieceZobrist['b'] = 8;
+	    charToPieceZobrist['r'] = 9;
+	    charToPieceZobrist['q'] = 10;
+	    charToPieceZobrist['k'] = 11;
 	}
 	
 	
@@ -123,9 +158,18 @@ public class Bitboard {
 		
 		this.gameStack = new Stack<>();
 		
+		this.zobristHash = board.zobristHash;
+		this.charToPieceZobrist = board.charToPieceZobrist;
+	    
+		this.ZOBRIST_TABLE = board.ZOBRIST_TABLE;
+	    this.ZOBRIST_CASTLING_RIGHTS = board.ZOBRIST_CASTLING_RIGHTS;
+	    this.ZOBRIST_ENPASSANT_FILE = board.ZOBRIST_ENPASSANT_FILE;
+	    this.ZOBRIST_MOVE_HASH = board.ZOBRIST_MOVE_HASH;
+		
 		for (Bitboard b : board.gameStack) {
 			this.gameStack.add(b.copy());
 		}
+		
 		
 	}
 	
@@ -156,6 +200,16 @@ public class Bitboard {
 	    copy.toMove = this.toMove;
 
 	    copy.gameStack = new Stack<>();
+	    
+
+	    copy.zobristHash = this.zobristHash;
+	    copy.charToPieceZobrist = this.charToPieceZobrist;
+	    
+	    copy.ZOBRIST_TABLE = this.ZOBRIST_TABLE;
+	    copy.ZOBRIST_CASTLING_RIGHTS = this.ZOBRIST_CASTLING_RIGHTS;
+	    copy.ZOBRIST_ENPASSANT_FILE = this.ZOBRIST_ENPASSANT_FILE;
+	    copy.ZOBRIST_MOVE_HASH = this.ZOBRIST_MOVE_HASH;
+
 
 	    return copy;
 	}
@@ -206,9 +260,6 @@ public class Bitboard {
 		
 		gameStack.push(this.copy());
 		
-		//String fen = this.generateSimpleFEN();
-	    //fenHistory.put(fen, fenHistory.getOrDefault(fen, 0) + 1);
-		
 		int initSquare = getInitialSquare(move);
 		int finalSquare = getFinalSquare(move);
 		int flag = getMoveFlag(move);
@@ -220,6 +271,71 @@ public class Bitboard {
 		
 		long initSquareBB = 0x1L << initSquare;
 		long finalSquareBB = 0x1L << finalSquare;
+		
+		
+
+		// update zobrist hash
+		
+		// undo previous castling rights and enpassant file
+		
+		// update side to move
+		zobristHash ^= ZOBRIST_MOVE_HASH;
+		
+		zobristHash ^= ZOBRIST_CASTLING_RIGHTS[getCastlingRights()];
+		
+		int enpassantFile = enpassantFile();
+		if (enpassantFile != -1) {
+			zobristHash ^= ZOBRIST_ENPASSANT_FILE[enpassantFile];
+		}
+		
+		
+		// make move
+		char moveP = getPieceOnSquare(initSquare);
+		int pieceIndex = charToPieceZobrist[moveP];
+		zobristHash ^= ZOBRIST_TABLE[pieceIndex][initSquare];
+		
+		// promotion
+		if (flag >= 2 && flag <= 5) {
+			if (flag == 2) moveP = toMove ? 'N' : 'n';
+			if (flag == 3) moveP = toMove ? 'B' : 'b';
+			if (flag == 4) moveP = toMove ? 'R' : 'r';
+			if (flag == 5) moveP = toMove ? 'Q' : 'q';
+			
+			pieceIndex = charToPieceZobrist[moveP];	
+		}
+		
+		zobristHash ^= ZOBRIST_TABLE[pieceIndex][finalSquare];
+		
+		// capture and enpassant capture
+		if (isCapture(move)) {
+			if (flag == FLAG_EN_PASSANT && enpassant != 0) {
+				char captureP = getPieceOnSquare(Long.numberOfTrailingZeros(enpassant));
+				int capPieceIndex = charToPieceZobrist[captureP];
+				zobristHash ^= ZOBRIST_TABLE[capPieceIndex][Long.numberOfTrailingZeros(enpassant)];
+			}
+			else {
+				char captureP = getPieceOnSquare(finalSquare);
+				int capPieceIndex = charToPieceZobrist[captureP];
+				zobristHash ^= ZOBRIST_TABLE[capPieceIndex][finalSquare];
+			}
+		}
+		
+		// castling
+		if (flag == FLAG_CASTLE_KINGSIDE) {
+			int rookSquare = toMove ? 0 : 56; 
+			char castleP = getPieceOnSquare(rookSquare);
+			int castlePIndex = charToPieceZobrist[castleP];
+			zobristHash ^= ZOBRIST_TABLE[castlePIndex][rookSquare];
+			zobristHash ^= ZOBRIST_TABLE[castlePIndex][rookSquare + 2];
+			
+		}
+		if (flag == FLAG_CASTLE_QUEENSIDE) {
+			int rookSquare = toMove ? 7 : 63; 
+			char castleP = getPieceOnSquare(rookSquare);
+			int castlePIndex = charToPieceZobrist[castleP];
+			zobristHash ^= ZOBRIST_TABLE[castlePIndex][rookSquare];
+			zobristHash ^= ZOBRIST_TABLE[castlePIndex][rookSquare - 3];
+		}
 		
 		
 		enpassant = 0x0L;
@@ -377,10 +493,18 @@ public class Bitboard {
 		updateCheckingPieces(kingSquare, toMove);
 		//if (checkingPieces != 0) System.out.println("CHECK!");
 		
+
+		// update new castling rights and enpassant file
+		zobristHash ^= ZOBRIST_CASTLING_RIGHTS[getCastlingRights()];
+		
+		enpassantFile = enpassantFile();
+		if (enpassantFile != -1) {
+			zobristHash ^= ZOBRIST_ENPASSANT_FILE[enpassantFile];
+		}
+
+		
 		toMove = !toMove;
 		
-		//if (isCheckMate(toMove)) System.out.println("Checkmate!");
-		//if (isStaleMate(toMove)) System.out.println("Stalemate!");
 	}
 	
 	public boolean isValidMove(int move) {
@@ -631,14 +755,14 @@ public class Bitboard {
 		this.checkingPieces = board.checkingPieces;
 		this.toMove = board.toMove;
 		
-		/*
-		// Remove current FEN from history
-	    String fen = this.generateSimpleFEN();
-	    fenHistory.put(fen, fenHistory.getOrDefault(fen, 1) - 1);
-	    if (fenHistory.get(fen) <= 0) {
-	        fenHistory.remove(fen);
-	    }
-	    */
+		this.zobristHash = board.zobristHash;
+
+		this.charToPieceZobrist = board.charToPieceZobrist;
+	    
+		this.ZOBRIST_TABLE = board.ZOBRIST_TABLE;
+	    this.ZOBRIST_CASTLING_RIGHTS = board.ZOBRIST_CASTLING_RIGHTS;
+	    this.ZOBRIST_ENPASSANT_FILE = board.ZOBRIST_ENPASSANT_FILE;
+	    this.ZOBRIST_MOVE_HASH = board.ZOBRIST_MOVE_HASH;
 	}
 	
 	// ZOBRIST HASHING METHODS
@@ -661,6 +785,8 @@ public class Bitboard {
 	}
 	
 	public int enpassantFile() {
+		if (!canEnpassant()) return -1;
+		
 		long fileH = 0x0101010101010101L;
 		
 		for (int i = 0; i < 7; i++) {
@@ -668,6 +794,18 @@ public class Bitboard {
 		}
 		
 		return -1;
+	}
+	
+	public boolean canEnpassant() {
+		int enpassantSquare = Long.numberOfTrailingZeros(enpassant);	
+		if (toMove) {
+			if ((MoveGenerator.getPawnAttacksTo(enpassantSquare, true) & whitePawns) != 0) return true;
+			else return false;
+		}
+		else {
+			if ((MoveGenerator.getPawnAttacksTo(enpassantSquare, false) & blackPawns) != 0) return true;
+			else return false;
+		}
 	}
 	
 	public ArrayList<Integer> generateAllLegalMoves(boolean toMove) {
@@ -1428,14 +1566,6 @@ public class Bitboard {
 				- EvaluationTools.evaluatePawnPosition(blackPawns, false));
 		
 		
-		/*
-		 * 
-	    // Penalize repetition
-	    String fen = this.generateSimpleFEN();
-	    int repetitions = fenHistory.getOrDefault(fen, 0);
-	    if (repetitions >= 3) return 0;
-	    */
-		
 	    return eval;
 	}
 		
@@ -1576,6 +1706,21 @@ public class Bitboard {
 		return allValidMovesAtSquare;
 	}
 	
+	public boolean isCapture(int move) {
+		int finalSquare = getFinalSquare(move);
+		long finalSquareBB = 0x1L << finalSquare;
+		
+		if (toMove) {
+			if ((finalSquareBB & blackPieces) != 0) return true;
+			else return false;
+		}
+		else {
+			if ((finalSquareBB & whitePieces) != 0) return true;
+			else return false;
+		}
+		
+	}
+	
 	
 	// DEBUG METHODS
 	
@@ -1594,4 +1739,61 @@ public class Bitboard {
 		System.out.println("  a b c d e f g h \n");
 		
 	}
+	
+	@Override
+	public String toString() {
+	    StringBuilder sb = new StringBuilder();
+
+	    for (int rank = 7; rank >= 0; rank--) {
+	        sb.append(rank + 1).append(" ");
+	        for (int file = 0; file < 8; file++) {
+	            int square = rank * 8 + (7 - file);
+	            char piece = getPieceOnSquare(square);
+	            sb.append(piece).append(" ");
+	        }
+	        sb.append("\n");
+	    }
+
+	    sb.append("  a b c d e f g h \n");
+
+	    return sb.toString();
+	}
+
+
+	public long getZobristHash() {
+		return zobristHash;
+	}
+	
+	public void reset() {
+		whitePawns = 0x000000000000FF00L;
+		blackPawns = 0x00FF000000000000L;
+		
+		whiteRooks = 0x0000000000000081L;
+		blackRooks = 0x8100000000000000L;
+		
+		whiteKnights = 0x0000000000000042L;
+		blackKnights = 0x4200000000000000L;
+		
+		whiteBishops = 0x0000000000000024L;
+		blackBishops = 0x2400000000000000L;
+		
+		whiteQueens = 0x0000000000000010L;
+		blackQueens = 0x1000000000000000L;
+		
+		whiteKing = 0x0000000000000008L;
+		blackKing = 0x0800000000000000L;
+		
+		blackPieces = 0xFFFF000000000000L;
+		whitePieces = 0x000000000000FFFFL;
+		
+		allPieces = blackPieces | whitePieces;
+		hasNotMoved = allPieces;
+		
+		enpassant = 0x0L;
+		checkingPieces = 0X0L;
+		
+		toMove = true;
+		gameStack = new Stack<>();
+	}
+
 }

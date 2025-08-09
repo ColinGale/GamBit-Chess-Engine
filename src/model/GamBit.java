@@ -2,161 +2,201 @@ package model;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Stack;
 
 public class GamBit {
-	
-	public static final double MATE_SCORE = 10000000;
-	public static final double NEG_MATE_SCORE = -10000000;
-	
-	private int depth;
-	private Bitboard board;
-	private int bestMove;
-	
-	// temporary fix to 3-move repetition before adding zobrist-hashing
-	private int prevMove1;
-	private int prevMove2;
-	
-	
-	
-	// benchmark testing
-	private int nodeCount = 0;
-	
-	public GamBit(int depth) {
-		this.depth = depth;
-		board = new Bitboard();
-		bestMove = 0;
-		prevMove1 = 0;
-		prevMove2 = 0;
+    
+    public static final double MATE_SCORE = 10000000;
+    public static final double NEG_MATE_SCORE = -10000000;
+    
+    private int depth;
+    private Bitboard board;
+    private int bestMove;
+
+    // 1M TT entries, power of two size for fast masking
+    private TTEntry[] transpositionTable = new TTEntry[1 << 20]; 
+
+    // Benchmark counters
+    private int nodeCount = 0;
+    int[] nodesAtDepth = new int[depth + 1];
+    public int ttHits = 0;
+    public int ttCutoffs = 0;
+
+    public GamBit(int depth) {
+        this.depth = depth;
+        this.board = new Bitboard();
+        this.bestMove = 0;
+        for (int i = 0; i < transpositionTable.length; i++) {
+            transpositionTable[i] = new TTEntry();
+        }
+    }
+    
+    public GamBit(int depth, Bitboard board) {
+        this.depth = depth;
+        this.board = board;
+        this.bestMove = 0;
+        for (int i = 0; i < transpositionTable.length; i++) {
+            transpositionTable[i] = new TTEntry();
+        }
+    }
+    
+    public double negamax(Bitboard simBoard, boolean toMove, int depth, double alpha, double beta) {
+
+        nodeCount++;
+        
+        // terminal checks
+        if (simBoard.isCheckMate(toMove)) return -MATE_SCORE - depth;
+        if (simBoard.isStaleMate(toMove)) return 0;
+        
+        if (depth == 0) {
+            return quiescence(simBoard, toMove, alpha, beta);
+        }
+        
+        
+        long hash = simBoard.getZobristHash();
+        int index = (int) (hash & (transpositionTable.length - 1));
+        TTEntry entry = transpositionTable[index];
+
+        // transposition Table lookup
+        if (entry.isValid(hash, depth)) {
+            ttHits++;
+            
+            if (depth == this.depth && entry.getMove() != 0) {
+                bestMove = entry.getMove();
+            }
+            if (entry.getFlag() == TTEntry.EXACT) {
+            	if (entry.getMove() != 0) {
+                    simBoard.makeMove(entry.getMove());
+                    double val = -negamax(simBoard, !toMove, depth - 1, -beta, -alpha);
+                    simBoard.undoMove();
+                    return val;
+                } else {
+                    // No move stored, just return eval
+                    return entry.getEval();
+                }
+            }
+            else if (entry.getFlag() == TTEntry.LOWERBOUND) alpha = Math.max(alpha, entry.getEval());
+            else if (entry.getFlag() == TTEntry.UPPERBOUND) beta = Math.min(beta, entry.getEval());
+            
+            if (alpha >= beta) {
+                ttCutoffs++;
+                return entry.getEval();
+            }
+        }
+
+
+
+        // moves ordered by MVV_LVA
+        ArrayList<MoveSet> moveList = simBoard.generateLegalMovesOrdered(toMove);
+
+        // TT move prioritization
+        if (entry != null && entry.getZobristKey() == hash) {
+            int ttMove = entry.getMove();
+
+            // only reorder if move is legal and not null
+            for (int i = 0; i < moveList.size(); i++) {
+                if (moveList.get(i).getMove() == ttMove) {
+                    // swap TT move to front
+                    if (i != 0) {
+                        MoveSet best = moveList.remove(i);
+                        moveList.add(0, best);
+                    }
+                    break;
+                }
+            }
+        }
+
+        double bestVal = -MATE_SCORE * 2;
+        int bestMoveSoFar = 0;
+        double originalAlpha = alpha;
+
+        for (MoveSet moveSet : moveList) {
+            simBoard.makeMove(moveSet.getMove());
+            double val = -negamax(simBoard, !toMove, depth - 1, -beta, -alpha);
+            simBoard.undoMove();
+
+            if (val > bestVal) {
+                bestVal = val;
+                bestMoveSoFar = moveSet.getMove();
+            }
+            alpha = Math.max(alpha, val);
+
+            // Beta cutoff
+            if (alpha >= beta) {
+                entry.set(hash, depth, bestVal, TTEntry.LOWERBOUND, bestMoveSoFar);
+                if (depth == this.depth) bestMove = bestMoveSoFar;
+                return bestVal;
+            }
+        }
+        // Store in TT
+        int flag;
+        if (bestVal <= originalAlpha) flag = TTEntry.UPPERBOUND; // All node
+        else if (bestVal >= beta) flag = TTEntry.LOWERBOUND;     // Cut node
+        else flag = TTEntry.EXACT;                               // PV node
+
+        entry.set(hash, depth, bestVal, flag, bestMoveSoFar);
+
+        if (depth == this.depth) bestMove = bestMoveSoFar;
+
+        return bestVal;
+    }
+
+    public double quiescence(Bitboard simBoard, boolean toMove, double alpha, double beta) {
+        nodeCount++;
+
+        if (simBoard.isCheckMate(toMove)) return -MATE_SCORE;
+        if (simBoard.isStaleMate(toMove)) return 0;
+
+        double staticEval = simBoard.evaluate();
+        if (!toMove) staticEval = -staticEval;
+
+        if (staticEval >= beta) return staticEval;
+        if (staticEval > alpha) alpha = staticEval;
+
+        ArrayList<int[]> captureAndChecks = simBoard.getCaptureAndChecks(toMove);
+
+        for (int[] moveArray : captureAndChecks) {
+            simBoard.makeMove(moveArray[0]);
+            double val = -quiescence(simBoard, !toMove, -beta, -alpha);
+            simBoard.undoMove();
+
+            if (val >= beta) return val;
+            if (val > alpha) alpha = val;
+        }
+
+        return alpha;
+    }
+
+    public Bitboard getBoard() {
+        return board;
+    }
+    
+    public int getBestMove() {
+        return bestMove;
+    }
+    
+    public int getNodeCount() {
+        return nodeCount;
+    }
+    
+    public void clearTT() {
+        for (int i = 0; i < transpositionTable.length; i++) {
+            transpositionTable[i].set(0L, -1, 0.0, TTEntry.EXACT, 0);
+        }
+    }
+    
+    public void resetStats() {
+    	nodeCount = 0;
+        ttHits = 0;
+        ttCutoffs = 0;
+        nodesAtDepth = new int[depth + 1];
+    }
+
+	public long getTTCutOffs() {
+		return ttCutoffs;
 	}
 	
-	public GamBit(int depth, Bitboard board) {
-		this.depth = depth;
-		this.board = board;
-		bestMove = 0;
-		prevMove1 = 0;
-		prevMove2 = 0;
-	}
-	
-	public double negamax(Bitboard simBoard, boolean toMove, int depth, double alpha, double beta, HashMap<Long, Integer> positionReached) {
-		
-	    nodeCount++;
-		if (simBoard.isCheckMate(toMove)) {
-	    	double val = -MATE_SCORE - depth;
-	    	return val;
-	    }
-	    if (simBoard.isStaleMate(toMove)) return 0;
-
-	    if (depth == 0) {
-	        double eval = quiescence(simBoard, toMove, alpha, beta, positionReached);
-	        return eval;
-	    }
-
-	    ArrayList<MoveSet> moveList = simBoard.generateLegalMovesOrdered(toMove);
-
-	    double bestVal = -MATE_SCORE * 2;
-
-	    for (MoveSet moveSet : moveList) {
-	    	
-	        simBoard.makeMove(moveSet.getMove());
-	        
-	        // add position to the hashmap
-	        long boardHash = ZobristHashing.computeHash(simBoard);
-	        positionReached.put(boardHash, positionReached.getOrDefault(boardHash, 0) + 1);
-	        
-	        double val;
-	        
-	        // 3 - move repetition is recognized as a draw
-	        if (positionReached.get(boardHash) == 3) val = 0;
-	        else val = -negamax(simBoard, !toMove, depth - 1, -beta, -alpha, positionReached);
-	        
-	        // remove position from hashmap
-	        if (positionReached.get(boardHash) == 1) positionReached.remove(boardHash);
-	        else positionReached.put(boardHash, positionReached.get(boardHash) - 1);
-	        
-	        simBoard.undoMove();
-	        
-	        
-	        if (depth == this.depth && sameMove(moveSet.getMove(), prevMove2)) continue;
-
-	        if (depth == this.depth && val > bestVal) {
-	            bestMove = moveSet.getMove();
-	        }
-
-	        bestVal = Math.max(bestVal, val);
-	        alpha = Math.max(alpha, val);
-	        if (alpha >= beta) break;
-	    }
-
-	    return bestVal;
-	}
-
-	
-	public double quiescence(Bitboard simBoard, boolean toMove, double alpha, double beta, HashMap<Long, Integer> positionReached) {
-		nodeCount++;
-	    if (simBoard.isCheckMate(toMove)) {
-	        return -MATE_SCORE;
-	    }
-	    if (simBoard.isStaleMate(toMove)) return 0;
-
-	    double staticEval = simBoard.evaluate();
-	    staticEval = toMove ? staticEval : -staticEval;
-
-	    if (staticEval >= beta) return staticEval;
-	    if (staticEval > alpha) alpha = staticEval;
-
-	    ArrayList<int[]> captureAndChecks = simBoard.getCaptureAndChecks(toMove);
-
-	    double bestVal = staticEval;
-
-	    for (int[] moveArray : captureAndChecks) {
-
-	        simBoard.makeMove(moveArray[0]);
-	        
-	        // add position to the hashmap
-	        long boardHash = ZobristHashing.computeHash(simBoard);
-	        positionReached.put(boardHash, positionReached.getOrDefault(boardHash, 0) + 1);
-	        
-	        double val;
-	        
-	        // 3 - move repetition is recognized as a draw
-	        if (positionReached.get(boardHash) == 3) val = 0;
-	        else val = -quiescence(simBoard, !toMove, -beta, -alpha, positionReached);
-	        
-	        // remove position from hashmap
-	        if (positionReached.get(boardHash) == 1) positionReached.remove(boardHash);
-	        else positionReached.put(boardHash, positionReached.get(boardHash) - 1);
-	        
-	        simBoard.undoMove();
-
-
-	        if (val >= beta) return val;
-	        if (val > bestVal) bestVal = val;
-	        if (val > alpha) alpha = val;
-	    }
-
-	    return bestVal;
-	}
-
-	public void updatePrevMoves(int newMove) {
-		prevMove2 = prevMove1;
-		prevMove1 = newMove;
-	}
-	
-	public boolean sameMove(int move1, int move2) {
-		return move1 == move2;
-	}
-	
-	public Bitboard getBoard() {
-		return board;
-	}
-	
-	public int getBestMove() {
-		return bestMove;
-	}
-	
-	public int getNodeCount() {
-		return nodeCount;
+	public long getTTHits() {
+		return ttHits;
 	}
 
 }

@@ -2,26 +2,40 @@ package model;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
-import java.util.HashMap;
 
 public class Benchmark {
 	
 	public static void runNPSBenchmark(int depth, int runs) {
 	    Bitboard board = new Bitboard();
-	    GamBit engine = new GamBit(5, board);
+	    GamBit engine = new GamBit(depth, board);
 
 	    long totalNodes = 0;
 	    long totalTimeNano = 0;
+	    long totalTTCutOffs = 0;
+	    long totalTTHits = 0;
+	    
+	    int warmup = 3;
+	    for (int i = 0; i < warmup; i++) {
+	    	
+	    	double result = engine.negamax(board, true, depth, -Double.MAX_VALUE, Double.MAX_VALUE);
+	    	
+	    	engine.clearTT();
+	    	engine.resetStats();
+	    }
 
 	    for (int i = 0; i < runs; i++) {
+	    	engine.clearTT();
+	    	engine.resetStats();
 	    	
 	        long startTime = System.nanoTime();
-	        double result = engine.negamax(board, true, 5, -Double.MAX_VALUE, Double.MAX_VALUE, new HashMap<>());
+	        double result = engine.negamax(board, true, depth, -Double.MAX_VALUE, Double.MAX_VALUE);
 	        long endTime = System.nanoTime();
 
 	        long elapsedTime = endTime - startTime;
 	        totalTimeNano += elapsedTime;
 	        totalNodes += engine.getNodeCount();
+	        totalTTCutOffs += engine.getTTCutOffs();
+	        totalTTHits += engine.getTTHits();
 
 	        System.out.printf("Run %d: Eval = %.2f, Nodes = %d, Time = %.2f sec\n", i + 1, result, engine.getNodeCount(), elapsedTime / 1e9);
 	    }
@@ -31,6 +45,8 @@ public class Benchmark {
 	    System.out.printf("Depth: %d | Runs: %d\n", depth, runs);
 	    System.out.printf("Total Nodes: %d\n", totalNodes);
 	    System.out.printf("Total Time: %.2f sec\n", totalTimeNano / 1e9);
+	    System.out.printf("TT Hit Rate: %.2f%%\n", 100.0 * totalTTHits / totalNodes);
+	    System.out.printf("TT Cutoff Rate: %.2f%%\n", 100.0 * totalTTCutOffs / totalNodes);
 	    System.out.printf("Average NPS: %.0f nodes/sec\n", avgNPS);
 	    
 	    OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
